@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek - Asistente con Contexto</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        body {
+            background: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 1400px;
+            height: 900px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Menú superior */
+        .menu-bar {
+            background: #2c3e50;
+            padding: 8px 16px;
+            display: flex;
+            gap: 24px;
+        }
+
+        .menu-item {
+            color: white;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .menu-item:hover {
+            background: #34495e;
+        }
+
+        /* Panel principal */
+        .main-panel {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Panel izquierdo - Contexto */
+        .left-panel {
+            width: 300px;
+            background: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .limit-control {
+            margin-bottom: 16px;
+        }
+
+        .limit-control label {
+            display: block;
+            font-size: 13px;
+            color: #495057;
+            margin-bottom: 4px;
+        }
+
+        .limit-input {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .limit-input input {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 8px;
+        }
+
+        .file-item {
+            padding: 4px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .file-item:hover {
+            background: #e9ecef;
+        }
+
+        .file-size {
+            color: #6c757d;
+            font-size: 11px;
+        }
+
+        /* Panel central - Chat */
+        .center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background: white;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            max-width: 80%;
+        }
+
+        .message-user {
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .message-bot {
+            align-self: flex-start;
+        }
+
+        .message-header {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+
+        .message-content {
+            padding: 12px;
+            border-radius: 8px;
+            background: white;
+            border: 1px solid #dee2e6;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+        }
+
+        .message-user .message-content {
+            background: #3498db;
+            color: white;
+            border: none;
+        }
+
+        .message-bot .message-content {
+            background: white;
+        }
+
+        .system-message {
+            text-align: center;
+            font-size: 12px;
+            color: #e74c3c;
+            margin: 8px 0;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .message-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            height: fit-content;
+        }
+
+        .send-btn:hover {
+            background: #2980b9;
+        }
+
+        .send-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        /* Panel derecho - Configuración */
+        .right-panel {
+            width: 280px;
+            background: #f8f9fa;
+            border-left: 1px solid #dee2e6;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .config-section {
+            margin-bottom: 20px;
+        }
+
+        .config-label {
+            font-size: 13px;
+            color: #495057;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .config-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .config-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        /* Barra de estado */
+        .status-bar {
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .modal-text {
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Menú superior -->
+        <div class="menu-bar">
+            <div class="menu-item" onclick="mostrarAcercaDe()">Acerca de</div>
+            <div class="menu-item" onclick="limpiarChat()">Limpiar chat</div>
+        </div>
+
+        <!-- Panel principal -->
+        <div class="main-panel">
+            <!-- Panel izquierdo - Contexto -->
+            <div class="left-panel">
+                <div class="panel-title">Contexto del Proyecto</div>
+
+                <div class="btn-group">
+                    <button class="btn" onclick="seleccionarCarpeta()">📁 Seleccionar carpeta</button>
+                    <button class="btn btn-primary" onclick="generarContexto()">⚡ Generar contexto</button>
+                    <button class="btn" onclick="limpiarContexto()">🗑️ Limpiar</button>
+                </div>
+
+                <div class="limit-control">
+                    <label>Límite contexto (tokens):</label>
+                    <div class="limit-input">
+                        <input type="number" id="contextLimit" value="100000" min="10000" max="130000" step="10000">
+                        <span style="font-size: 12px; color: #6c757d;">/131072</span>
+                    </div>
+                    <div class="checkbox">
+                        <input type="checkbox" id="truncateContext" checked>
+                        <label>Truncar contexto automáticamente</label>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 8px; font-size: 13px; color: #495057;">Archivos del proyecto:</div>
+                <div class="file-tree" id="fileTree">
+                    <div style="color: #6c757d; text-align: center; margin-top: 20px;">Selecciona una carpeta</div>
+                </div>
+            </div>
+
+            <!-- Panel central - Chat -->
+            <div class="center-panel">
+                <div class="panel-title">Chat con DeepSeek</div>
+
+                <div class="chat-area" id="chatArea">
+                    <!-- Los mensajes se insertarán aquí -->
+                </div>
+
+                <div class="input-area">
+                    <textarea class="message-input" id="messageInput" placeholder="Escribe tu mensaje... (Enter para enviar, Shift+Enter para nueva línea)" rows="3"></textarea>
+                    <button class="send-btn" id="sendButton" onclick="enviarMensaje()">Enviar</button>
+                </div>
+            </div>
+
+            <!-- Panel derecho - Configuración -->
+            <div class="right-panel">
+                <div class="panel-title">Configuración</div>
+
+                <div class="config-section">
+                    <label class="config-label">API Key:</label>
+                    <input type="password" class="config-input" id="apiKey" placeholder="sk-...">
+
+                    <label class="config-label">Modelo:</label>
+                    <select class="config-select" id="model">
+                        <option value="deepseek-chat" selected>deepseek-chat</option>
+                        <option value="deepseek-coder">deepseek-coder</option>
+                    </select>
+
+                    <label class="config-label">Temperatura:</label>
+                    <input type="range" class="config-input" id="temperature" min="0" max="1" step="0.1" value="0.3">
+
+                    <label class="config-label">Max tokens respuesta:</label>
+                    <input type="number" class="config-input" id="maxTokens" value="4000" min="100" max="8000">
+
+                    <label class="config-label">System prompt:</label>
+                    <textarea class="config-textarea" id="systemPrompt" rows="4">Eres un asistente experto en programación. Si generas código, incluye el marcador GUARDAR: seguido de la ruta del archivo y el contenido completo para que pueda guardarse automáticamente.</textarea>
+                </div>
+
+                <div class="btn-group" style="flex-direction: column;">
+                    <button class="btn" onclick="guardarConversacion()" style="width: 100%; margin-bottom: 8px;">💾 Guardar conversación</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de estado -->
+        <div class="status-bar" id="statusBar">Listo</div>
+    </div>
+
+    <!-- Modal Acerca de -->
+    <div class="modal" id="acercaModal">
+        <div class="modal-content">
+            <div class="modal-title">Acerca de DeepSeek UI</div>
+            <div class="modal-text">
+                Versión: 2.0 (Web)<br>
+                Integración con DeepSeek API<br>
+                Generador de contexto para proyectos<br>
+                Guardado automático de archivos con marcador GUARDAR:
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="cerrarModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        let proyectoActual = null;
+        let contextoActual = "";
+        let archivosProyecto = [];
+        let conversacion = [];
+        let archivosSeleccionados = [];
+
+        // Elementos del DOM
+        const chatArea = document.getElementById('chatArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusBar = document.getElementById('statusBar');
+        const fileTree = document.getElementById('fileTree');
+        const apiKeyInput = document.getElementById('apiKey');
+        const modelSelect = document.getElementById('model');
+        const temperatureInput = document.getElementById('temperature');
+        const maxTokensInput = document.getElementById('maxTokens');
+        const systemPrompt = document.getElementById('systemPrompt');
+        const contextLimit = document.getElementById('contextLimit');
+        const truncateContext = document.getElementById('truncateContext');
+
+        // Cargar API key del localStorage si existe
+        const savedApiKey = localStorage.getItem('deepseek_api_key');
+        if (savedApiKey) {
+            apiKeyInput.value = savedApiKey;
+        }
+
+        // Configurar event listeners
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                enviarMensaje();
+            }
+        });
+
+        // Funciones de la interfaz
+        function actualizarStatus(mensaje) {
+            statusBar.textContent = mensaje;
+        }
+
+        function mostrarAcercaDe() {
+            document.getElementById('acercaModal').classList.add('active');
+        }
+
+        function cerrarModal() {
+            document.getElementById('acercaModal').classList.remove('active');
+        }
+
+        function seleccionarCarpeta() {
+            // En una aplicación web real, usarías un input type="file" con webkitdirectory
+            // pero por simplicidad, simularemos la selección
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.onchange = (e) => {
+                const files = Array.from(e.target.files);
+                proyectoActual = files[0].webkitRelativePath.split('/')[0];
+                actualizarStatus(`Proyecto: ${proyectoActual}`);
+                cargarArbolArchivos(files);
+            };
+            input.click();
+        }
+
+        function cargarArbolArchivos(files) {
+            archivosProyecto = [];
+            const extensionesValidas = ['.py', '.js', '.html', '.css', '.json', '.md', '.txt', '.yml', '.yaml', '.toml', '.ini', '.env', '.gitignore'];
+            const archivosEspeciales = ['Dockerfile', 'Makefile', 'requirements.txt'];
+
+            files.forEach(file => {
+                const ext = '.' + file.name.split('.').pop().toLowerCase();
+                if (extensionesValidas.includes(ext) || archivosEspeciales.includes(file.name)) {
+                    archivosProyecto.push({
+                        ruta: file.webkitRelativePath,
+                        nombre: file.name,
+                        tamaño: file.size,
+                        archivo: file
+                    });
+                }
+            });
+
+            // Mostrar en el árbol
+            fileTree.innerHTML = '';
+            archivosProyecto.forEach(archivo => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>📄 ${archivo.ruta}</span>
+                    <span class="file-size">${(archivo.tamaño/1024).toFixed(1)} KB</span>
+                `;
+                fileTree.appendChild(item);
+            });
+        }
+
+        async function generarContexto() {
+            if (!proyectoActual || archivosProyecto.length === 0) {
+                alert('Primero selecciona una carpeta de proyecto');
+                return;
+            }
+
+            actualizarStatus('Generando contexto...');
+
+            try {
+                let contexto = `# ${proyectoActual}\n`;
+                contexto += `# ${new Date().toISOString().split('T')[0]}\n`;
+                contexto += `# ${archivosProyecto.length} files\n\n`;
+
+                for (const archivo of archivosProyecto) {
+                    const contenido = await leerArchivo(archivo.archivo);
+                    contexto += `=== ${archivo.ruta} ===\n`;
+                    contexto += contenido + '\n\n';
+                }
+
+                contextoActual = contexto;
+
+                const chars = contexto.length;
+                const tokensEstimados = Math.floor(chars / 4);
+                actualizarStatus(`Contexto generado: ${(chars/1024).toFixed(1)} KB (~${tokensEstimados.toLocaleString()} tokens)`);
+
+                if (tokensEstimados > 130000) {
+                    alert(`El contexto tiene ~${tokensEstimados.toLocaleString()} tokens estimados.\nEl límite de DeepSeek es 131,072 tokens.\nSe truncará automáticamente al enviar.`);
+                }
+
+            } catch (error) {
+                alert('Error generando contexto: ' + error.message);
+                actualizarStatus('Error generando contexto');
+            }
+        }
+
+        function leerArchivo(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function limpiarContexto() {
+            contextoActual = "";
+            proyectoActual = null;
+            archivosProyecto = [];
+            fileTree.innerHTML = '<div style="color: #6c757d; text-align: center; margin-top: 20px;">Selecciona una carpeta</div>';
+            actualizarStatus('Contexto limpiado');
+        }
+
+        function limpiarChat() {
+            chatArea.innerHTML = '';
+            conversacion = [];
+        }
+
+        async function enviarMensaje() {
+            const mensaje = messageInput.value.trim();
+            if (!mensaje) return;
+
+            // Guardar API key
+            const apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                localStorage.setItem('deepseek_api_key', apiKey);
+            }
+
+            // Mostrar mensaje del usuario
+            agregarMensaje('user', mensaje);
+            messageInput.value = '';
+            sendButton.disabled = true;
+            actualizarStatus('Enviando...');
+
+            try {
+                // Limitar contexto si es necesario
+                let contextoParaEnviar = contextoActual;
+                if (truncateContext.checked && contextoParaEnviar) {
+                    const maxChars = parseInt(contextLimit.value) * 4;
+                    if (contextoParaEnviar.length > maxChars) {
+                        const charsOriginal = contextoParaEnviar.length;
+                        contextoParaEnviar = contextoParaEnviar.substring(0, maxChars) +
+                            `\n\n[Contexto truncado: originalmente ${charsOriginal} caracteres, ~${Math.floor(charsOriginal/4)} tokens]`;
+                    }
+                }
+
+                // Preparar prompt
+                let prompt = mensaje;
+                if (contextoParaEnviar) {
+                    prompt = `Contexto del proyecto:\n${contextoParaEnviar}\n\nPregunta: ${mensaje}\n\nResponde basándote en el contexto proporcionado. Si generas código, incluye el marcador GUARDAR: seguido de la ruta del archivo y el contenido completo.`;
+                }
+
+                // Llamar a la API
+                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelSelect.value,
+                        messages: [
+                            { role: 'system', content: systemPrompt.value },
+                            { role: 'user', content: prompt }
+                        ],
+                        temperature: parseFloat(temperatureInput.value),
+                        max_tokens: parseInt(maxTokensInput.value)
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(`Error ${response.status}: ${error.error?.message || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+                const respuesta = data.choices[0].message.content;
+
+                // Guardar en conversación
+                conversacion.push({ role: 'user', content: mensaje });
+                conversacion.push({ role: 'assistant', content: respuesta });
+
+                // Procesar guardado automático
+                const archivosGuardados = procesarGuardado(respuesta);
+
+                // Mostrar respuesta
+                agregarMensaje('bot', respuesta, archivosGuardados);
+                actualizarStatus('Listo');
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                actualizarStatus('Error');
+            } finally {
+                sendButton.disabled = false;
+            }
+        }
+
+        function procesarGuardado(respuesta) {
+            const regex = /GUARDAR:\s*([^\n]+)\n(.*?)(?=GUARDAR:|$)/gis;
+            const archivosGuardados = [];
+
+            let match;
+            while ((match = regex.exec(respuesta)) !== null) {
+                const rutaRel = match[1].trim();
+                const contenido = match[2].trim();
+
+                // Crear un blob y descargar el archivo
+                const blob = new Blob([contenido], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = rutaRel.split('/').pop(); // Solo el nombre del archivo
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                archivosGuardados.push(rutaRel);
+                console.log(`Archivo guardado: ${rutaRel}`);
+            }
+
+            return archivosGuardados;
+        }
+
+        function agregarMensaje(tipo, contenido, archivosGuardados = []) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${tipo}`;
+
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            header.textContent = tipo === 'user' ? 'Tú' : 'DeepSeek';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = contenido;
+
+            messageDiv.appendChild(header);
+            messageDiv.appendChild(content);
+
+            if (archivosGuardados.length > 0) {
+                const systemMsg = document.createElement('div');
+                systemMsg.className = 'system-message';
+                systemMsg.textContent = `📁 Archivos guardados: ${archivosGuardados.join(', ')}`;
+                messageDiv.appendChild(systemMsg);
+            }
+
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function guardarConversacion() {
+            if (chatArea.children.length === 0) {
+                alert('No hay conversación para guardar');
+                return;
+            }
+
+            let texto = '';
+            for (const child of chatArea.children) {
+                if (child.classList.contains('message')) {
+                    const header = child.querySelector('.message-header').textContent;
+                    const content = child.querySelector('.message-content').textContent;
+                    texto += `${header}: ${content}\n\n`;
+                }
+            }
+
+            const blob = new Blob([texto], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `conversacion_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            actualizarStatus('Conversación guardada');
+        }
+    </script>
+</body>
+</html>
