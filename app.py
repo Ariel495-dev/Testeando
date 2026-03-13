@@ -4,7 +4,7 @@ import shutil
 from deepseek_client import DeepSeekClient
 from config import PROYECTOS_AUTORIZADOS, EXTENSIONES_PERMITIDAS, ruta_autorizada, obtener_lenguaje_por_extension
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='template')  # ← apunta a tu carpeta existente
 deepseek = DeepSeekClient()
 
 app.config['SECRET_KEY'] = 'cambia-esta-clave-secreta'
@@ -19,7 +19,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 def index():
     """Página principal"""
     return render_template(
-        'index.html',
+        'index.html',                               # ← nombre real de tu archivo
         proyectos=PROYECTOS_AUTORIZADOS,
         extensiones=list(EXTENSIONES_PERMITIDAS.keys())
     )
@@ -44,7 +44,6 @@ def listar_archivos():
     try:
         archivos = []
         for root, dirs, files in os.walk(directorio):
-            # Ignorar carpetas ocultas y de caché
             dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('__pycache__', 'node_modules', '.git')]
 
             for file in files:
@@ -158,14 +157,13 @@ def crear_archivo():
 def modificar_archivo():
     """Modifica o genera código usando DeepSeek"""
     data = request.json or {}
-    ruta         = data.get('ruta', '')
+    ruta          = data.get('ruta', '')
     instrucciones = data.get('instrucciones', '')
-    accion       = data.get('accion', 'modificar')   # 'modificar' | 'generar'
+    accion        = data.get('accion', 'modificar')   # 'modificar' | 'generar'
 
     if not instrucciones:
         return jsonify({'error': 'Las instrucciones son requeridas'}), 400
 
-    # Para 'generar' no necesitamos que el archivo exista todavía
     if accion == 'modificar':
         if not ruta or not os.path.exists(ruta):
             return jsonify({'error': 'Archivo no encontrado'}), 404
@@ -187,7 +185,7 @@ def modificar_archivo():
             return jsonify({'error': codigo_resultado}), 500
 
         return jsonify({
-            'codigo_original':  codigo_original,
+            'codigo_original':   codigo_original,
             'codigo_modificado': codigo_resultado,
             'lenguaje': lenguaje
         })
@@ -200,17 +198,16 @@ def modificar_archivo():
 def chat():
     """Chat directo con DeepSeek"""
     data = request.json or {}
-    mensaje    = data.get('mensaje', '')
-    historial  = data.get('historial', [])   # lista de {role, content}
+    mensaje      = data.get('mensaje', '')
+    historial    = data.get('historial', [])
     personalidad = data.get('personalidad', 'Eres un asistente útil y amable')
 
     if not mensaje:
         return jsonify({'error': 'El mensaje no puede estar vacío'}), 400
 
     try:
-        # Construir mensajes con historial
         mensajes = [{"role": "system", "content": personalidad}]
-        mensajes.extend(historial[-10:])        # máximo 10 turnos de contexto
+        mensajes.extend(historial[-10:])
         mensajes.append({"role": "user", "content": mensaje})
 
         import requests as req

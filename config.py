@@ -1,23 +1,11 @@
 """
 Configuración de proyectos autorizados
-Agrega aquí las rutas de los proyectos que quieres permitir
 """
 
 import os
 
-# Lista de proyectos autorizados (rutas absolutas o relativas)
-# Descomenta y edita las rutas según tu sistema:
+# Proyectos que aparecen en el desplegable por defecto
 PROYECTOS_AUTORIZADOS = [
-    # Windows:
-    # r"C:\Users\tu_usuario\Documents\Proyectos\mi_app_flask",
-    # r"D:\Desarrollo\juego_godot",
-    # r"C:\Users\tu_usuario\AndroidStudioProjects\MiApp",
-
-    # Linux/Mac:
-    # "/home/usuario/proyectos/mi_app",
-    # "/home/usuario/AndroidStudioProjects/MiApp",
-
-    # Ruta del proyecto actual (para pruebas)
     os.path.dirname(os.path.abspath(__file__)),
 ]
 
@@ -32,12 +20,24 @@ EXTENSIONES_PERMITIDAS = {
 
 
 def ruta_autorizada(ruta):
-    """Verifica si una ruta está dentro de algún proyecto autorizado"""
+    """
+    Acepta cualquier ruta que exista en el sistema de archivos.
+    Los proyectos del desplegable siguen funcionando también.
+    """
     ruta_abs = os.path.abspath(ruta)
+
+    # Verificar que la ruta (o su carpeta padre) existe
+    if os.path.exists(ruta_abs):
+        return True
+    if os.path.exists(os.path.dirname(ruta_abs)):
+        return True
+
+    # Compatibilidad con proyectos del desplegable
     for proyecto in PROYECTOS_AUTORIZADOS:
         proyecto_abs = os.path.abspath(proyecto)
         if ruta_abs.startswith(proyecto_abs):
             return True
+
     return False
 
 

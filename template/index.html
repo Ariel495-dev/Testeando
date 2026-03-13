@@ -11,36 +11,55 @@
     <header>
         <h1>🤖 Modificador de Código con DeepSeek</h1>
         <p>Selecciona un proyecto y archivo para modificar con IA</p>
-        <!-- Pestañas de modo -->
         <div class="tabs">
-            <button class="tab active" onclick="cambiarTab('editor')">📝 Editor</button>
-            <button class="tab" onclick="cambiarTab('chat')">💬 Chat</button>
+            <button class="tab active" onclick="cambiarTab('editor', this)">📝 Editor</button>
+            <button class="tab" onclick="cambiarTab('chat', this)">💬 Chat</button>
         </div>
     </header>
 
-    <!-- ══════════════════════════════════════ -->
-    <!--  MODO EDITOR                           -->
-    <!-- ══════════════════════════════════════ -->
+    <!-- MODO EDITOR -->
     <div id="tabEditor" class="main-content">
 
         <!-- Panel izquierdo – Explorador -->
         <div class="file-explorer">
-            <h2>📁 Proyectos Autorizados</h2>
+            <h2>📁 Explorador</h2>
 
-            <div class="project-selector">
-                <label for="project">Selecciona proyecto:</label>
-                <select id="project" onchange="cargarArchivos()">
-                    <option value="">-- Selecciona un proyecto --</option>
+            <!-- Buscador de ruta -->
+            <div class="path-browser">
+                <label>Ruta de la carpeta:</label>
+                <div class="path-input-row">
+                    <input
+                        type="text"
+                        id="pathInput"
+                        placeholder="Ej: C:\Users\leira\MiProyecto"
+                        onkeydown="if(event.key==='Enter') abrirRuta()"
+                    />
+                    <button onclick="abrirRuta()" title="Abrir">📂</button>
+                </div>
+
+                <!-- Historial de rutas recientes -->
+                <div id="recentPaths" class="recent-paths" style="display:none;">
+                    <span class="recent-label">Recientes:</span>
+                    <div id="recentList"></div>
+                </div>
+
+                <!-- Proyectos por defecto -->
+                <div class="quick-projects">
+                    <span class="recent-label">Proyectos guardados:</span>
                     {% for proyecto in proyectos %}
-                    <option value="{{ proyecto }}">{{ proyecto }}</option>
+                    <div class="quick-project-item" onclick="cargarRuta('{{ proyecto }}')">
+                        📁 {{ proyecto }}
+                    </div>
                     {% endfor %}
-                </select>
+                </div>
             </div>
 
+            <!-- Lista de archivos -->
             <div class="file-list" id="fileList">
-                <p class="placeholder">Selecciona un proyecto para ver sus archivos</p>
+                <p class="placeholder">Escribe o pega una ruta y pulsa 📂</p>
             </div>
 
+            <!-- Crear nuevo archivo -->
             <div class="new-file">
                 <h3>➕ Crear nuevo archivo</h3>
                 <input type="text" id="newFileName" placeholder="nombre_archivo.py">
@@ -53,7 +72,7 @@
             </div>
         </div>
 
-        <!-- Panel central – Editor de código -->
+        <!-- Panel central – Editor -->
         <div class="code-editor">
             <div class="editor-header">
                 <h2 id="currentFile">📄 Ningún archivo seleccionado</h2>
@@ -81,7 +100,7 @@
             <div class="ai-instructions">
                 <label for="instructions">Instrucciones para la IA:</label>
                 <textarea id="instructions"
-                    placeholder="Ej: Agrega una función que calcule el factorial, o Convierte esta clase a Kotlin…"
+                    placeholder="Ej: Agrega una función que calcule el factorial…"
                     rows="5"></textarea>
             </div>
 
@@ -107,9 +126,7 @@
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════ -->
-    <!--  MODO CHAT                             -->
-    <!-- ══════════════════════════════════════ -->
+    <!-- MODO CHAT -->
     <div id="tabChat" class="chat-container" style="display:none;">
         <div class="chat-sidebar">
             <h2>⚙️ Configuración</h2>
@@ -125,7 +142,6 @@
                     <p>¡Hola! Soy tu asistente DeepSeek. Puedo ayudarte con código, responder preguntas y mucho más.</p>
                 </div>
             </div>
-
             <div class="chat-input-area">
                 <textarea id="chatInput"
                     placeholder="Escribe tu mensaje… (Enter para enviar, Shift+Enter para nueva línea)"
@@ -135,10 +151,9 @@
             </div>
         </div>
     </div>
-</div><!-- /container -->
+</div>
 
-
-<!-- Modal – Nuevo archivo -->
+<!-- Modal nuevo archivo -->
 <div id="newFileModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="cerrarModalNuevo()">&times;</span>
@@ -151,45 +166,83 @@
     </div>
 </div>
 
-
 <script>
-/* ────────────────────────────────────────────
-   ESTADO GLOBAL
-──────────────────────────────────────────── */
-let archivoActual    = null;
-let codigoModificado = null;
-let lenguajeActual   = null;
-let chatHistorial    = [];
+/* ── ESTADO ── */
+let archivoActual     = null;
+let codigoModificado  = null;
+let lenguajeActual    = null;
+let chatHistorial     = [];
+let proyectoActual    = null;
+const MAX_RECIENTES   = 6;
 
-/* ────────────────────────────────────────────
-   TABS
-──────────────────────────────────────────── */
-function cambiarTab(tab) {
+/* ── TABS ── */
+function cambiarTab(tab, btn) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    event.target.classList.add('active');
-
+    btn.classList.add('active');
     document.getElementById('tabEditor').style.display = tab === 'editor' ? 'grid' : 'none';
     document.getElementById('tabChat').style.display   = tab === 'chat'   ? 'flex'  : 'none';
 }
 
-/* ────────────────────────────────────────────
-   EXPLORADOR
-──────────────────────────────────────────── */
-function cargarArchivos() {
-    const project = document.getElementById('project').value;
-    if (!project) return;
+/* ── RUTAS RECIENTES (localStorage) ── */
+function obtenerRecientes() {
+    try { return JSON.parse(localStorage.getItem('rutasRecientes') || '[]'); }
+    catch { return []; }
+}
+
+function guardarReciente(ruta) {
+    let recientes = obtenerRecientes().filter(r => r !== ruta);
+    recientes.unshift(ruta);
+    recientes = recientes.slice(0, MAX_RECIENTES);
+    localStorage.setItem('rutasRecientes', JSON.stringify(recientes));
+    renderizarRecientes();
+}
+
+function renderizarRecientes() {
+    const recientes = obtenerRecientes();
+    const wrapper   = document.getElementById('recentPaths');
+    const lista     = document.getElementById('recentList');
+
+    if (!recientes.length) { wrapper.style.display = 'none'; return; }
+
+    wrapper.style.display = 'block';
+    lista.innerHTML = recientes.map(r =>
+        `<div class="recent-item" onclick="cargarRuta('${r.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+            📁 <span title="${r}">${r}</span>
+         </div>`
+    ).join('');
+}
+
+/* ── ABRIR RUTA ── */
+function abrirRuta() {
+    const ruta = document.getElementById('pathInput').value.trim();
+    if (!ruta) return;
+    cargarRuta(ruta);
+}
+
+function cargarRuta(ruta) {
+    document.getElementById('pathInput').value = ruta;
+    proyectoActual = ruta;
 
     fetch('/api/listar-archivos', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({directorio: project})
+        body: JSON.stringify({directorio: ruta})
     })
     .then(r => r.json())
     .then(data => {
         const fileList = document.getElementById('fileList');
-        if (data.error) { fileList.innerHTML = `<p class="error">${data.error}</p>`; return; }
-        if (!data.archivos.length) { fileList.innerHTML = '<p>No hay archivos compatibles</p>'; return; }
+        if (data.error) {
+            fileList.innerHTML = `<p class="error">❌ ${data.error}</p>`;
+            return;
+        }
+        if (!data.archivos.length) {
+            fileList.innerHTML = '<p class="placeholder">No hay archivos compatibles en esta carpeta</p>';
+            return;
+        }
 
+        guardarReciente(ruta);
+
+        // Agrupar por lenguaje
         const porLenguaje = {};
         data.archivos.forEach(a => {
             (porLenguaje[a.lenguaje] = porLenguaje[a.lenguaje] || []).push(a);
@@ -199,11 +252,12 @@ function cargarArchivos() {
         for (const [lang, archivos] of Object.entries(porLenguaje)) {
             html += `<h3>${lang}</h3><ul>`;
             archivos.forEach(a => {
-                const kb = (a.tamano / 1024).toFixed(2);
-                const ruta = a.ruta.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                html += `<li onclick="cargarArchivo('${ruta}')">
-                    📄 ${a.nombre} <span class="file-size">(${kb} KB)</span>
-                </li>`;
+                const kb   = (a.tamano / 1024).toFixed(2);
+                const safe = a.ruta.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+                html += `<li onclick="cargarArchivo('${safe}')">
+                            📄 ${a.nombre}
+                            <span class="file-size">(${kb} KB)</span>
+                         </li>`;
             });
             html += '</ul>';
         }
@@ -214,6 +268,7 @@ function cargarArchivos() {
     });
 }
 
+/* ── ARCHIVOS ── */
 function cargarArchivo(ruta) {
     fetch('/api/leer-archivo', {
         method: 'POST',
@@ -227,61 +282,16 @@ function cargarArchivo(ruta) {
         archivoActual  = ruta;
         lenguajeActual = data.lenguaje;
 
-        document.getElementById('currentFile').innerHTML = `📄 ${data.nombre}`;
-        document.getElementById('codeArea').value        = data.contenido;
-        document.getElementById('codeArea').readOnly     = false;
-        document.getElementById('saveBtn').disabled      = false;
-        document.getElementById('downloadBtn').disabled  = false;
-        document.getElementById('processBtn').disabled   = false;
-        document.getElementById('fileInfo').innerHTML    =
+        document.getElementById('currentFile').innerHTML    = `📄 ${data.nombre}`;
+        document.getElementById('codeArea').value           = data.contenido;
+        document.getElementById('codeArea').readOnly        = false;
+        document.getElementById('saveBtn').disabled         = false;
+        document.getElementById('downloadBtn').disabled     = false;
+        document.getElementById('processBtn').disabled      = false;
+        document.getElementById('fileInfo').innerHTML       =
             `Lenguaje: ${data.lenguaje} | ${data.contenido.length} caracteres`;
         document.getElementById('previewSection').style.display = 'none';
     });
-}
-
-/* ────────────────────────────────────────────
-   IA – EDITOR
-──────────────────────────────────────────── */
-function procesarConIA() {
-    if (!archivoActual) { alert('Selecciona un archivo primero'); return; }
-    const instrucciones = document.getElementById('instructions').value.trim();
-    if (!instrucciones) { alert('Escribe las instrucciones para la IA'); return; }
-
-    const accion     = document.getElementById('aiAction').value;
-    const processBtn = document.getElementById('processBtn');
-    processBtn.disabled    = true;
-    processBtn.textContent = '⏳ Procesando…';
-
-    fetch('/api/modificar-archivo', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ruta: archivoActual, instrucciones, accion})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) { alert(data.error); return; }
-
-        document.getElementById('originalCode').textContent = data.codigo_original;
-        document.getElementById('modifiedCode').textContent = data.codigo_modificado;
-        document.getElementById('previewSection').style.display = 'block';
-        codigoModificado = data.codigo_modificado;
-    })
-    .catch(err => alert('Error: ' + err))
-    .finally(() => {
-        processBtn.disabled    = false;
-        processBtn.textContent = '🚀 Procesar con IA';
-    });
-}
-
-function aplicarCambios() {
-    document.getElementById('codeArea').value = codigoModificado;
-    document.getElementById('previewSection').style.display = 'none';
-    codigoModificado = null;
-}
-
-function cancelarCambios() {
-    document.getElementById('previewSection').style.display = 'none';
-    codigoModificado = null;
 }
 
 function guardarCambios() {
@@ -313,29 +323,69 @@ function descargarArchivo() {
     URL.revokeObjectURL(url);
 }
 
-/* ────────────────────────────────────────────
-   NUEVO ARCHIVO – MODAL
-──────────────────────────────────────────── */
+/* ── IA – EDITOR ── */
+function procesarConIA() {
+    if (!archivoActual) { alert('Selecciona un archivo primero'); return; }
+    const instrucciones = document.getElementById('instructions').value.trim();
+    if (!instrucciones) { alert('Escribe las instrucciones para la IA'); return; }
+
+    const accion     = document.getElementById('aiAction').value;
+    const processBtn = document.getElementById('processBtn');
+    processBtn.disabled    = true;
+    processBtn.textContent = '⏳ Procesando…';
+
+    fetch('/api/modificar-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta: archivoActual, instrucciones, accion})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('originalCode').textContent = data.codigo_original;
+        document.getElementById('modifiedCode').textContent = data.codigo_modificado;
+        document.getElementById('previewSection').style.display = 'block';
+        codigoModificado = data.codigo_modificado;
+    })
+    .catch(err => alert('Error: ' + err))
+    .finally(() => {
+        processBtn.disabled    = false;
+        processBtn.textContent = '🚀 Procesar con IA';
+    });
+}
+
+function aplicarCambios() {
+    document.getElementById('codeArea').value = codigoModificado;
+    document.getElementById('previewSection').style.display = 'none';
+    codigoModificado = null;
+}
+
+function cancelarCambios() {
+    document.getElementById('previewSection').style.display = 'none';
+    codigoModificado = null;
+}
+
+/* ── NUEVO ARCHIVO – MODAL ── */
 function mostrarModalNuevo() {
     document.getElementById('newFileModal').style.display = 'block';
 }
-
 function cerrarModalNuevo() {
     document.getElementById('newFileModal').style.display = 'none';
     document.getElementById('newFileContent').value = '';
 }
-
 function generarContenidoInicial() {
     const nombre   = document.getElementById('newFileName').value.trim();
     const lenguaje = document.getElementById('newFileLanguage').value;
     if (!nombre) { alert('Escribe un nombre para el archivo'); return; }
 
-    const desc = `Crea un archivo ${lenguaje} llamado ${nombre} con estructura básica y funcional, bien comentado.`;
-
     fetch('/api/modificar-archivo', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ruta: nombre, instrucciones: desc, accion: 'generar'})
+        body: JSON.stringify({
+            ruta: nombre,
+            instrucciones: `Crea un archivo ${lenguaje} llamado ${nombre} con estructura básica, bien comentado.`,
+            accion: 'generar'
+        })
     })
     .then(r => r.json())
     .then(data => {
@@ -343,56 +393,45 @@ function generarContenidoInicial() {
         document.getElementById('newFileContent').value = data.codigo_modificado;
     });
 }
-
 function crearArchivo() {
-    const project  = document.getElementById('project').value;
-    const nombre   = document.getElementById('newFileName').value.trim();
-    const contenido = document.getElementById('newFileContent').value;
+    const directorio = proyectoActual || document.getElementById('pathInput').value.trim();
+    const nombre     = document.getElementById('newFileName').value.trim();
+    const contenido  = document.getElementById('newFileContent').value;
 
-    if (!project || !nombre) { alert('Selecciona un proyecto y escribe un nombre'); return; }
+    if (!directorio || !nombre) { alert('Abre una carpeta primero y escribe un nombre'); return; }
 
     fetch('/api/crear-archivo', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({directorio: project, nombre, contenido})
+        body: JSON.stringify({directorio, nombre, contenido})
     })
     .then(r => r.json())
     .then(data => {
         if (data.error) { alert('Error: ' + data.error); return; }
         alert('✅ Archivo creado correctamente');
         cerrarModalNuevo();
-        cargarArchivos();
+        cargarRuta(directorio);
     });
 }
-
 window.onclick = e => {
     if (e.target === document.getElementById('newFileModal')) cerrarModalNuevo();
 };
 
-/* ────────────────────────────────────────────
-   CHAT
-──────────────────────────────────────────── */
+/* ── CHAT ── */
 function manejarTeclaChat(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        enviarMensajeChat();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensajeChat(); }
 }
-
 function agregarMensaje(rol, texto) {
     const mensajes = document.getElementById('chatMessages');
-    const div = document.createElement('div');
+    const div      = document.createElement('div');
     div.classList.add('chat-msg', rol === 'user' ? 'chat-msg-user' : 'chat-msg-bot');
-
-    const burbuja = document.createElement('div');
+    const burbuja  = document.createElement('div');
     burbuja.classList.add('chat-bubble');
     burbuja.textContent = texto;
-
     div.appendChild(burbuja);
     mensajes.appendChild(div);
     mensajes.scrollTop = mensajes.scrollHeight;
 }
-
 function agregarTyping() {
     const mensajes = document.getElementById('chatMessages');
     const div = document.createElement('div');
@@ -402,59 +441,50 @@ function agregarTyping() {
     mensajes.appendChild(div);
     mensajes.scrollTop = mensajes.scrollHeight;
 }
-
 function quitarTyping() {
     const el = document.getElementById('typingIndicator');
     if (el) el.remove();
 }
-
 function enviarMensajeChat() {
-    const input = document.getElementById('chatInput');
+    const input   = document.getElementById('chatInput');
     const mensaje = input.value.trim();
     if (!mensaje) return;
 
     input.value = '';
     agregarMensaje('user', mensaje);
     agregarTyping();
-
-    const personalidad = document.getElementById('chatPersonalidad').value.trim();
     document.getElementById('chatSendBtn').disabled = true;
 
     fetch('/api/chat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({mensaje, historial: chatHistorial, personalidad})
+        body: JSON.stringify({
+            mensaje,
+            historial: chatHistorial,
+            personalidad: document.getElementById('chatPersonalidad').value.trim()
+        })
     })
     .then(r => r.json())
     .then(data => {
         quitarTyping();
-        if (data.error) {
-            agregarMensaje('bot', '❌ Error: ' + data.error);
-            return;
-        }
+        if (data.error) { agregarMensaje('bot', '❌ Error: ' + data.error); return; }
         agregarMensaje('bot', data.respuesta);
         chatHistorial.push({role: 'user',      content: mensaje});
         chatHistorial.push({role: 'assistant', content: data.respuesta});
-        // Mantener historial acotado
         if (chatHistorial.length > 20) chatHistorial = chatHistorial.slice(-20);
     })
-    .catch(err => {
-        quitarTyping();
-        agregarMensaje('bot', '❌ Error de red: ' + err);
-    })
-    .finally(() => {
-        document.getElementById('chatSendBtn').disabled = false;
-    });
+    .catch(err => { quitarTyping(); agregarMensaje('bot', '❌ Error de red: ' + err); })
+    .finally(() => { document.getElementById('chatSendBtn').disabled = false; });
 }
-
 function limpiarChat() {
     chatHistorial = [];
     document.getElementById('chatMessages').innerHTML = `
-        <div class="chat-welcome">
-            <span>👋</span>
-            <p>Chat limpiado. ¡Empieza una nueva conversación!</p>
-        </div>`;
+        <div class="chat-welcome"><span>👋</span>
+        <p>Chat limpiado. ¡Empieza una nueva conversación!</p></div>`;
 }
+
+/* ── INIT ── */
+renderizarRecientes();
 </script>
 </body>
 </html>
