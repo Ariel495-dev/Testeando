@@ -7,382 +7,454 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🤖 Modificador de Código con DeepSeek</h1>
-            <p>Selecciona un proyecto y archivo para modificar con IA</p>
-        </header>
+<div class="container">
+    <header>
+        <h1>🤖 Modificador de Código con DeepSeek</h1>
+        <p>Selecciona un proyecto y archivo para modificar con IA</p>
+        <!-- Pestañas de modo -->
+        <div class="tabs">
+            <button class="tab active" onclick="cambiarTab('editor')">📝 Editor</button>
+            <button class="tab" onclick="cambiarTab('chat')">💬 Chat</button>
+        </div>
+    </header>
 
-        <div class="main-content">
-            <!-- Panel izquierdo - Explorador de archivos -->
-            <div class="file-explorer">
-                <h2>📁 Proyectos Autorizados</h2>
+    <!-- ══════════════════════════════════════ -->
+    <!--  MODO EDITOR                           -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tabEditor" class="main-content">
 
-                <div class="project-selector">
-                    <label for="project">Selecciona proyecto:</label>
-                    <select id="project" onchange="cargarArchivos()">
-                        <option value="">-- Selecciona un proyecto --</option>
-                        {% for proyecto in proyectos %}
-                        <option value="{{ proyecto }}">{{ proyecto }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        <!-- Panel izquierdo – Explorador -->
+        <div class="file-explorer">
+            <h2>📁 Proyectos Autorizados</h2>
 
-                <div class="file-list" id="fileList">
-                    <p class="placeholder">Selecciona un proyecto para ver sus archivos</p>
-                </div>
-
-                <div class="new-file">
-                    <h3>➕ Crear nuevo archivo</h3>
-                    <input type="text" id="newFileName" placeholder="nombre_archivo.py">
-                    <select id="newFileLanguage">
-                        <option value="Python">Python</option>
-                        <option value="GD Script">GD Script</option>
-                        <option value="Java">Java</option>
-                        <option value="Kotlin">Kotlin</option>
-                        <option value="XML">XML</option>
-                    </select>
-                    <button onclick="mostrarModalNuevo()">Crear</button>
-                </div>
+            <div class="project-selector">
+                <label for="project">Selecciona proyecto:</label>
+                <select id="project" onchange="cargarArchivos()">
+                    <option value="">-- Selecciona un proyecto --</option>
+                    {% for proyecto in proyectos %}
+                    <option value="{{ proyecto }}">{{ proyecto }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
-            <!-- Panel central - Editor de código -->
-            <div class="code-editor">
-                <div class="editor-header">
-                    <h2 id="currentFile">📄 Ningún archivo seleccionado</h2>
-                    <div class="editor-actions">
-                        <button onclick="guardarCambios()" id="saveBtn" disabled>💾 Guardar</button>
-                        <button onclick="descargarArchivo()" id="downloadBtn" disabled>⬇️ Descargar</button>
-                    </div>
-                </div>
-
-                <textarea id="codeArea" placeholder="El contenido del archivo aparecerá aquí..." readonly></textarea>
-
-                <div class="file-info" id="fileInfo"></div>
+            <div class="file-list" id="fileList">
+                <p class="placeholder">Selecciona un proyecto para ver sus archivos</p>
             </div>
 
-            <!-- Panel derecho - Asistente IA -->
-            <div class="ai-assistant">
-                <h2>🤖 Asistente IA</h2>
+            <div class="new-file">
+                <h3>➕ Crear nuevo archivo</h3>
+                <input type="text" id="newFileName" placeholder="nombre_archivo.py">
+                <select id="newFileLanguage">
+                    {% for ext in extensiones %}
+                    <option value="{{ ext }}">{{ ext }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="mostrarModalNuevo()">Crear</button>
+            </div>
+        </div>
 
-                <div class="ai-actions">
-                    <label>Acción:</label>
-                    <select id="aiAction">
-                        <option value="modificar">Modificar código existente</option>
-                        <option value="generar">Generar código nuevo</option>
-                    </select>
+        <!-- Panel central – Editor de código -->
+        <div class="code-editor">
+            <div class="editor-header">
+                <h2 id="currentFile">📄 Ningún archivo seleccionado</h2>
+                <div class="editor-actions">
+                    <button onclick="guardarCambios()" id="saveBtn" disabled>💾 Guardar</button>
+                    <button onclick="descargarArchivo()" id="downloadBtn" disabled>⬇️ Descargar</button>
                 </div>
+            </div>
+            <textarea id="codeArea" placeholder="El contenido del archivo aparecerá aquí…" readonly></textarea>
+            <div class="file-info" id="fileInfo"></div>
+        </div>
 
-                <div class="ai-instructions">
-                    <label for="instructions">Instrucciones para la IA:</label>
-                    <textarea id="instructions" placeholder="Ej: Agrega una función que calcule el factorial, o Convierte esta clase a Kotlin..." rows="5"></textarea>
+        <!-- Panel derecho – Asistente IA -->
+        <div class="ai-assistant">
+            <h2>🤖 Asistente IA</h2>
+
+            <div class="ai-actions">
+                <label>Acción:</label>
+                <select id="aiAction">
+                    <option value="modificar">Modificar código existente</option>
+                    <option value="generar">Generar código nuevo</option>
+                </select>
+            </div>
+
+            <div class="ai-instructions">
+                <label for="instructions">Instrucciones para la IA:</label>
+                <textarea id="instructions"
+                    placeholder="Ej: Agrega una función que calcule el factorial, o Convierte esta clase a Kotlin…"
+                    rows="5"></textarea>
+            </div>
+
+            <button onclick="procesarConIA()" id="processBtn" disabled>🚀 Procesar con IA</button>
+
+            <div class="preview-section" id="previewSection" style="display:none;">
+                <h3>📋 Vista Previa de Cambios</h3>
+                <div class="diff-view">
+                    <div class="original">
+                        <h4>Original</h4>
+                        <pre id="originalCode"></pre>
+                    </div>
+                    <div class="modified">
+                        <h4>Modificado</h4>
+                        <pre id="modifiedCode"></pre>
+                    </div>
                 </div>
-
-                <button onclick="procesarConIA()" id="processBtn" disabled>🚀 Procesar con IA</button>
-
-                <div class="preview-section" id="previewSection" style="display: none;">
-                    <h3>📋 Vista Previa de Cambios</h3>
-                    <div class="diff-view">
-                        <div class="original">
-                            <h4>Original</h4>
-                            <pre id="originalCode"></pre>
-                        </div>
-                        <div class="modified">
-                            <h4>Modificado</h4>
-                            <pre id="modifiedCode"></pre>
-                        </div>
-                    </div>
-                    <div class="preview-actions">
-                        <button onclick="aplicarCambios()">✅ Aplicar Cambios</button>
-                        <button onclick="cancelarCambios()">❌ Cancelar</button>
-                    </div>
+                <div class="preview-actions">
+                    <button onclick="aplicarCambios()">✅ Aplicar Cambios</button>
+                    <button onclick="cancelarCambios()">❌ Cancelar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal para nuevo archivo -->
-    <div id="newFileModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="cerrarModalNuevo()">&times;</span>
-            <h2>Crear Nuevo Archivo</h2>
-            <textarea id="newFileContent" placeholder="Escribe el contenido inicial del archivo..." rows="15"></textarea>
-            <div class="modal-actions">
-                <button onclick="generarContenidoInicial()">✨ Generar con IA</button>
-                <button onclick="crearArchivo()">💾 Crear Archivo</button>
+    <!-- ══════════════════════════════════════ -->
+    <!--  MODO CHAT                             -->
+    <!-- ══════════════════════════════════════ -->
+    <div id="tabChat" class="chat-container" style="display:none;">
+        <div class="chat-sidebar">
+            <h2>⚙️ Configuración</h2>
+            <label>Personalidad del asistente:</label>
+            <textarea id="chatPersonalidad" rows="4">Eres un asistente experto en programación, útil y conciso.</textarea>
+            <button onclick="limpiarChat()" class="btn-danger">🗑️ Limpiar chat</button>
+        </div>
+
+        <div class="chat-main">
+            <div class="chat-messages" id="chatMessages">
+                <div class="chat-welcome">
+                    <span>👋</span>
+                    <p>¡Hola! Soy tu asistente DeepSeek. Puedo ayudarte con código, responder preguntas y mucho más.</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <textarea id="chatInput"
+                    placeholder="Escribe tu mensaje… (Enter para enviar, Shift+Enter para nueva línea)"
+                    rows="2"
+                    onkeydown="manejarTeclaChat(event)"></textarea>
+                <button onclick="enviarMensajeChat()" id="chatSendBtn">Enviar ➤</button>
             </div>
         </div>
     </div>
+</div><!-- /container -->
 
-    <script>
-        let archivoActual = null;
-        let codigoModificado = null;
-        let lenguajeActual = null;
 
-        // Cargar archivos del proyecto seleccionado
-        function cargarArchivos() {
-            const project = document.getElementById('project').value;
-            if (!project) return;
+<!-- Modal – Nuevo archivo -->
+<div id="newFileModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="cerrarModalNuevo()">&times;</span>
+        <h2>Crear Nuevo Archivo</h2>
+        <textarea id="newFileContent" placeholder="Escribe el contenido inicial del archivo…" rows="15"></textarea>
+        <div class="modal-actions">
+            <button onclick="generarContenidoInicial()">✨ Generar con IA</button>
+            <button onclick="crearArchivo()">💾 Crear Archivo</button>
+        </div>
+    </div>
+</div>
 
-            fetch('/api/listar-archivos', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({directorio: project})
-            })
-            .then(response => response.json())
-            .then(data => {
-                const fileList = document.getElementById('fileList');
-                if (data.error) {
-                    fileList.innerHTML = `<p class="error">${data.error}</p>`;
-                    return;
-                }
 
-                if (data.archivos.length === 0) {
-                    fileList.innerHTML = '<p>No hay archivos compatibles en este proyecto</p>';
-                    return;
-                }
+<script>
+/* ────────────────────────────────────────────
+   ESTADO GLOBAL
+──────────────────────────────────────────── */
+let archivoActual    = null;
+let codigoModificado = null;
+let lenguajeActual   = null;
+let chatHistorial    = [];
 
-                // Agrupar por lenguaje
-                const porLenguaje = {};
-                data.archivos.forEach(archivo => {
-                    if (!porLenguaje[archivo.lenguaje]) {
-                        porLenguaje[archivo.lenguaje] = [];
-                    }
-                    porLenguaje[archivo.lenguaje].push(archivo);
-                });
+/* ────────────────────────────────────────────
+   TABS
+──────────────────────────────────────────── */
+function cambiarTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
 
-                let html = '';
-                for (const [lenguaje, archivos] of Object.entries(porLenguaje)) {
-                    html += `<h3>${lenguaje}</h3><ul>`;
-                    archivos.forEach(archivo => {
-                        const tamanoKB = (archivo.tamano / 1024).toFixed(2);
-                        html += `<li onclick="cargarArchivo('${archivo.ruta}')">
-                            📄 ${archivo.nombre} <span class="file-size">(${tamanoKB} KB)</span>
-                        </li>`;
-                    });
-                    html += '</ul>';
-                }
+    document.getElementById('tabEditor').style.display = tab === 'editor' ? 'grid' : 'none';
+    document.getElementById('tabChat').style.display   = tab === 'chat'   ? 'flex'  : 'none';
+}
 
-                fileList.innerHTML = html;
-            })
-            .catch(error => {
-                document.getElementById('fileList').innerHTML = `<p class="error">Error: ${error}</p>`;
+/* ────────────────────────────────────────────
+   EXPLORADOR
+──────────────────────────────────────────── */
+function cargarArchivos() {
+    const project = document.getElementById('project').value;
+    if (!project) return;
+
+    fetch('/api/listar-archivos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({directorio: project})
+    })
+    .then(r => r.json())
+    .then(data => {
+        const fileList = document.getElementById('fileList');
+        if (data.error) { fileList.innerHTML = `<p class="error">${data.error}</p>`; return; }
+        if (!data.archivos.length) { fileList.innerHTML = '<p>No hay archivos compatibles</p>'; return; }
+
+        const porLenguaje = {};
+        data.archivos.forEach(a => {
+            (porLenguaje[a.lenguaje] = porLenguaje[a.lenguaje] || []).push(a);
+        });
+
+        let html = '';
+        for (const [lang, archivos] of Object.entries(porLenguaje)) {
+            html += `<h3>${lang}</h3><ul>`;
+            archivos.forEach(a => {
+                const kb = (a.tamano / 1024).toFixed(2);
+                const ruta = a.ruta.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                html += `<li onclick="cargarArchivo('${ruta}')">
+                    📄 ${a.nombre} <span class="file-size">(${kb} KB)</span>
+                </li>`;
             });
+            html += '</ul>';
         }
+        fileList.innerHTML = html;
+    })
+    .catch(err => {
+        document.getElementById('fileList').innerHTML = `<p class="error">Error: ${err}</p>`;
+    });
+}
 
-        // Cargar contenido de un archivo
-        function cargarArchivo(ruta) {
-            fetch('/api/leer-archivo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ruta: ruta})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
+function cargarArchivo(ruta) {
+    fetch('/api/leer-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
 
-                archivoActual = ruta;
-                lenguajeActual = data.lenguaje;
-                document.getElementById('currentFile').innerHTML = `📄 ${data.nombre}`;
-                document.getElementById('codeArea').value = data.contenido;
-                document.getElementById('codeArea').readOnly = false;
-                document.getElementById('saveBtn').disabled = false;
-                document.getElementById('downloadBtn').disabled = false;
-                document.getElementById('processBtn').disabled = false;
-                document.getElementById('fileInfo').innerHTML = `Lenguaje: ${data.lenguaje} | Tamaño: ${data.contenido.length} caracteres`;
+        archivoActual  = ruta;
+        lenguajeActual = data.lenguaje;
 
-                // Ocultar vista previa si estaba abierta
-                document.getElementById('previewSection').style.display = 'none';
-            });
+        document.getElementById('currentFile').innerHTML = `📄 ${data.nombre}`;
+        document.getElementById('codeArea').value        = data.contenido;
+        document.getElementById('codeArea').readOnly     = false;
+        document.getElementById('saveBtn').disabled      = false;
+        document.getElementById('downloadBtn').disabled  = false;
+        document.getElementById('processBtn').disabled   = false;
+        document.getElementById('fileInfo').innerHTML    =
+            `Lenguaje: ${data.lenguaje} | ${data.contenido.length} caracteres`;
+        document.getElementById('previewSection').style.display = 'none';
+    });
+}
+
+/* ────────────────────────────────────────────
+   IA – EDITOR
+──────────────────────────────────────────── */
+function procesarConIA() {
+    if (!archivoActual) { alert('Selecciona un archivo primero'); return; }
+    const instrucciones = document.getElementById('instructions').value.trim();
+    if (!instrucciones) { alert('Escribe las instrucciones para la IA'); return; }
+
+    const accion     = document.getElementById('aiAction').value;
+    const processBtn = document.getElementById('processBtn');
+    processBtn.disabled    = true;
+    processBtn.textContent = '⏳ Procesando…';
+
+    fetch('/api/modificar-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta: archivoActual, instrucciones, accion})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+
+        document.getElementById('originalCode').textContent = data.codigo_original;
+        document.getElementById('modifiedCode').textContent = data.codigo_modificado;
+        document.getElementById('previewSection').style.display = 'block';
+        codigoModificado = data.codigo_modificado;
+    })
+    .catch(err => alert('Error: ' + err))
+    .finally(() => {
+        processBtn.disabled    = false;
+        processBtn.textContent = '🚀 Procesar con IA';
+    });
+}
+
+function aplicarCambios() {
+    document.getElementById('codeArea').value = codigoModificado;
+    document.getElementById('previewSection').style.display = 'none';
+    codigoModificado = null;
+}
+
+function cancelarCambios() {
+    document.getElementById('previewSection').style.display = 'none';
+    codigoModificado = null;
+}
+
+function guardarCambios() {
+    if (!archivoActual) return;
+    const contenido = document.getElementById('codeArea').value;
+
+    fetch('/api/guardar-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta: archivoActual, contenido})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error al guardar: ' + data.error); return; }
+        alert('✅ Archivo guardado correctamente');
+        document.getElementById('fileInfo').innerHTML =
+            `Lenguaje: ${lenguajeActual} | ${contenido.length} caracteres (guardado)`;
+    });
+}
+
+function descargarArchivo() {
+    if (!archivoActual) return;
+    const contenido = document.getElementById('codeArea').value;
+    const nombre    = archivoActual.split(/[\\/]/).pop();
+    const blob      = new Blob([contenido], {type: 'text/plain'});
+    const url       = URL.createObjectURL(blob);
+    const a         = document.createElement('a');
+    a.href = url; a.download = nombre; a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ────────────────────────────────────────────
+   NUEVO ARCHIVO – MODAL
+──────────────────────────────────────────── */
+function mostrarModalNuevo() {
+    document.getElementById('newFileModal').style.display = 'block';
+}
+
+function cerrarModalNuevo() {
+    document.getElementById('newFileModal').style.display = 'none';
+    document.getElementById('newFileContent').value = '';
+}
+
+function generarContenidoInicial() {
+    const nombre   = document.getElementById('newFileName').value.trim();
+    const lenguaje = document.getElementById('newFileLanguage').value;
+    if (!nombre) { alert('Escribe un nombre para el archivo'); return; }
+
+    const desc = `Crea un archivo ${lenguaje} llamado ${nombre} con estructura básica y funcional, bien comentado.`;
+
+    fetch('/api/modificar-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ruta: nombre, instrucciones: desc, accion: 'generar'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('newFileContent').value = data.codigo_modificado;
+    });
+}
+
+function crearArchivo() {
+    const project  = document.getElementById('project').value;
+    const nombre   = document.getElementById('newFileName').value.trim();
+    const contenido = document.getElementById('newFileContent').value;
+
+    if (!project || !nombre) { alert('Selecciona un proyecto y escribe un nombre'); return; }
+
+    fetch('/api/crear-archivo', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({directorio: project, nombre, contenido})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert('Error: ' + data.error); return; }
+        alert('✅ Archivo creado correctamente');
+        cerrarModalNuevo();
+        cargarArchivos();
+    });
+}
+
+window.onclick = e => {
+    if (e.target === document.getElementById('newFileModal')) cerrarModalNuevo();
+};
+
+/* ────────────────────────────────────────────
+   CHAT
+──────────────────────────────────────────── */
+function manejarTeclaChat(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensajeChat();
+    }
+}
+
+function agregarMensaje(rol, texto) {
+    const mensajes = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.classList.add('chat-msg', rol === 'user' ? 'chat-msg-user' : 'chat-msg-bot');
+
+    const burbuja = document.createElement('div');
+    burbuja.classList.add('chat-bubble');
+    burbuja.textContent = texto;
+
+    div.appendChild(burbuja);
+    mensajes.appendChild(div);
+    mensajes.scrollTop = mensajes.scrollHeight;
+}
+
+function agregarTyping() {
+    const mensajes = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.id = 'typingIndicator';
+    div.classList.add('chat-msg', 'chat-msg-bot');
+    div.innerHTML = '<div class="chat-bubble typing"><span></span><span></span><span></span></div>';
+    mensajes.appendChild(div);
+    mensajes.scrollTop = mensajes.scrollHeight;
+}
+
+function quitarTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+}
+
+function enviarMensajeChat() {
+    const input = document.getElementById('chatInput');
+    const mensaje = input.value.trim();
+    if (!mensaje) return;
+
+    input.value = '';
+    agregarMensaje('user', mensaje);
+    agregarTyping();
+
+    const personalidad = document.getElementById('chatPersonalidad').value.trim();
+    document.getElementById('chatSendBtn').disabled = true;
+
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mensaje, historial: chatHistorial, personalidad})
+    })
+    .then(r => r.json())
+    .then(data => {
+        quitarTyping();
+        if (data.error) {
+            agregarMensaje('bot', '❌ Error: ' + data.error);
+            return;
         }
+        agregarMensaje('bot', data.respuesta);
+        chatHistorial.push({role: 'user',      content: mensaje});
+        chatHistorial.push({role: 'assistant', content: data.respuesta});
+        // Mantener historial acotado
+        if (chatHistorial.length > 20) chatHistorial = chatHistorial.slice(-20);
+    })
+    .catch(err => {
+        quitarTyping();
+        agregarMensaje('bot', '❌ Error de red: ' + err);
+    })
+    .finally(() => {
+        document.getElementById('chatSendBtn').disabled = false;
+    });
+}
 
-        // Procesar con IA
-        function procesarConIA() {
-            if (!archivoActual) {
-                alert('Selecciona un archivo primero');
-                return;
-            }
-
-            const instrucciones = document.getElementById('instructions').value;
-            if (!instrucciones) {
-                alert('Escribe las instrucciones para la IA');
-                return;
-            }
-
-            const accion = document.getElementById('aiAction').value;
-            const processBtn = document.getElementById('processBtn');
-            processBtn.disabled = true;
-            processBtn.textContent = '⏳ Procesando...';
-
-            fetch('/api/modificar-archivo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    ruta: archivoActual,
-                    instrucciones: instrucciones,
-                    accion: accion
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
-                // Mostrar vista previa
-                document.getElementById('originalCode').textContent = data.codigo_original;
-                document.getElementById('modifiedCode').textContent = data.codigo_modificado;
-                document.getElementById('previewSection').style.display = 'block';
-
-                codigoModificado = data.codigo_modificado;
-            })
-            .catch(error => {
-                alert('Error: ' + error);
-            })
-            .finally(() => {
-                processBtn.disabled = false;
-                processBtn.textContent = '🚀 Procesar con IA';
-            });
-        }
-
-        // Aplicar cambios (actualizar editor)
-        function aplicarCambios() {
-            document.getElementById('codeArea').value = codigoModificado;
-            document.getElementById('previewSection').style.display = 'none';
-            codigoModificado = null;
-        }
-
-        // Cancelar cambios
-        function cancelarCambios() {
-            document.getElementById('previewSection').style.display = 'none';
-            codigoModificado = null;
-        }
-
-        // Guardar cambios en el archivo
-        function guardarCambios() {
-            if (!archivoActual) return;
-
-            const contenido = document.getElementById('codeArea').value;
-
-            fetch('/api/guardar-archivo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    ruta: archivoActual,
-                    contenido: contenido
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Error al guardar: ' + data.error);
-                } else {
-                    alert('✅ Archivo guardado correctamente');
-                    // Actualizar info
-                    document.getElementById('fileInfo').innerHTML =
-                        `Lenguaje: ${lenguajeActual} | Tamaño: ${contenido.length} caracteres (guardado)`;
-                }
-            });
-        }
-
-        // Descargar archivo
-        function descargarArchivo() {
-            if (!archivoActual) return;
-
-            const contenido = document.getElementById('codeArea').value;
-            const nombre = archivoActual.split('/').pop() || archivoActual.split('\\').pop();
-
-            const blob = new Blob([contenido], {type: 'text/plain'});
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = nombre;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        }
-
-        // Modal nuevo archivo
-        function mostrarModalNuevo() {
-            document.getElementById('newFileModal').style.display = 'block';
-        }
-
-        function cerrarModalNuevo() {
-            document.getElementById('newFileModal').style.display = 'none';
-            document.getElementById('newFileContent').value = '';
-        }
-
-        function generarContenidoInicial() {
-            const nombre = document.getElementById('newFileName').value;
-            const lenguaje = document.getElementById('newFileLanguage').value;
-
-            if (!nombre) {
-                alert('Escribe un nombre para el archivo');
-                return;
-            }
-
-            const descripcion = `Crea un archivo ${lenguaje} llamado ${nombre} con una estructura básica y funcional.`;
-
-            fetch('/api/modificar-archivo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    ruta: archivoActual || 'temp',
-                    instrucciones: descripcion,
-                    accion: 'generar'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    document.getElementById('newFileContent').value = data.codigo_modificado;
-                }
-            });
-        }
-
-        function crearArchivo() {
-            const project = document.getElementById('project').value;
-            const nombre = document.getElementById('newFileName').value;
-            const contenido = document.getElementById('newFileContent').value;
-
-            if (!project || !nombre) {
-                alert('Selecciona un proyecto y escribe un nombre');
-                return;
-            }
-
-            fetch('/api/crear-archivo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    directorio: project,
-                    nombre: nombre,
-                    contenido: contenido
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                } else {
-                    alert('✅ Archivo creado correctamente');
-                    cerrarModalNuevo();
-                    cargarArchivos(); // Recargar lista
-                }
-            });
-        }
-
-        // Cerrar modal si se hace clic fuera
-        window.onclick = function(event) {
-            const modal = document.getElementById('newFileModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        }
-    </script>
+function limpiarChat() {
+    chatHistorial = [];
+    document.getElementById('chatMessages').innerHTML = `
+        <div class="chat-welcome">
+            <span>👋</span>
+            <p>Chat limpiado. ¡Empieza una nueva conversación!</p>
+        </div>`;
+}
+</script>
 </body>
 </html>
